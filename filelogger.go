@@ -38,6 +38,7 @@ type Logger struct {
 
 	outC           chan string
 	shutdownC      chan bool
+	shutdownW      sync.WaitGroup
 
 	copyWriters    []io.Writer
 }
@@ -60,7 +61,6 @@ func NewFileLogger(baseDir string, flag int, rotateType int, copyWriters ... io.
 	return
 }
 
-// TODO: wait for finish process all of messages in buffered channel
 func (o *Logger) Shutdown() {
 	if o.shutdownC != nil {
 		o.shutdownC <- true
@@ -69,6 +69,8 @@ func (o *Logger) Shutdown() {
 	if o.rotateTimer != nil {
 		o.rotateTimer.Stop()
 	}
+
+	o.shutdownW.Wait()
 
 	o.closeFile()
 }
@@ -92,9 +94,10 @@ func (o *Logger) init(flag int, rotateType int) (logger *Logger, err error) {
 	}
 
 	// create the manage channel after file initializaton to prevent a deadlock
-	o.outC = make(chan string)//, 100)
+	o.outC = make(chan string, 128)
 	o.shutdownC = make(chan bool)
 
+	o.shutdownW.Add(1)
 	go o.outLine()
 
 	o.resetRotation()
@@ -248,6 +251,8 @@ func (o *Logger) bannerOut() {
 }
 
 func (o *Logger) outLine() {
+	defer o.shutdownW.Done()
+
 	for {
 		select {
 		case line := <-o.outC:
@@ -259,6 +264,13 @@ func (o *Logger) outLine() {
 			o.resetRotation()
 
 		case <-o.shutdownC:
+		// process last log lines
+			close(o.outC)
+
+			for line := range o.outC {
+				o.log.Print(line)
+			}
+
 			return
 		}
 	}

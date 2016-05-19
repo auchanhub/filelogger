@@ -70,7 +70,7 @@ func TestLogWrite(t *testing.T) {
 	testFileName := filepath.Join(testPath, time.Now().Format("20060102.log"))
 	expect := bytes.NewBuffer(nil)
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 10; i++ {
 		logger.Info("hello", i, "friends")
 		expect.WriteString(fmt.Sprintf("%v \thello\t%v\tfriends\n", time.Now().Format("2006/01/02 15:04:05"), i))
 	}
@@ -85,14 +85,10 @@ func TestLogWrite(t *testing.T) {
 
 	// check the result
 	if expect.Len() == 0 || !reflect.DeepEqual(exist, expect.Bytes()) {
-		//t.Error("failed to write lines to the log file", testFileName, ". The result file contains\r\n",
-		//	string(exist),
-		//	"\r\n, but the expect result should contains\r\n",
-		//	expect)
 		t.Error("failed to write lines to the log file", testFileName, ". The result file contains\r\n",
-			exist,
+			string(exist),
 			"\r\n, but the expect result should contains\r\n",
-			expect.Bytes())
+			expect)
 	}
 }
 
