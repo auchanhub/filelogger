@@ -11,7 +11,6 @@ import (
 	"log"
 	"path/filepath"
 	"fmt"
-	"bytes"
 )
 
 const (
@@ -61,6 +60,7 @@ func NewFileLogger(baseDir string, flag int, rotateType int, copyWriters ... io.
 	return
 }
 
+// TODO: wait for finish process all of messages in buffered channel
 func (o *Logger) Shutdown() {
 	if o.shutdownC != nil {
 		o.shutdownC <- true
@@ -229,27 +229,16 @@ func (o *Logger) nextDuration() time.Duration {
 }
 
 func (o *Logger) Info(args ...interface{}) {
-	buffer := bytes.NewBufferString("")
+	a := make([]byte, 0, 128)
 
-	for i, arg := range args {
-		if i > 0 {
-			buffer.Write([]byte("\t"))
-		}
-
-		switch v := arg.(type) {
-		case error:
-			buffer.WriteString(v.Error())
-			return
-
-		case fmt.Stringer:
-			buffer.WriteString(v.String())
-
-		default:
-			fmt.Fprintf(buffer, "%v", arg)
-		}
+	for _, arg := range args {
+		a = append(a, []byte("\t")...)
+		a = append(a, []byte(fmt.Sprint(arg))...)
 	}
 
-	o.outC <- buffer.String()
+	a = append(a, []byte("\n")...)
+
+	o.outC <- string(a)
 }
 
 // TODO: The method is for write a line to the log with different reasons (e.g. DEBUG, TEST, WARNING)
@@ -262,7 +251,7 @@ func (o *Logger) outLine() {
 	for {
 		select {
 		case line := <-o.outC:
-			o.log.Println(line)
+			o.log.Print(line)
 
 		// the edge of the day
 		case now := <-o.rotateTimer.C:

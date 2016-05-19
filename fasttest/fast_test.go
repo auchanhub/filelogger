@@ -2,7 +2,7 @@ package fasttest
 
 import (
 	"testing"
-	filelogger ".."
+	filelogger "../"
 	"os"
 	"path/filepath"
 	"time"
@@ -15,12 +15,12 @@ import (
 )
 
 func TestLogErrorEmpty(t *testing.T) {
-	log, err := filelogger.NewFileLogger("", 0, filelogger.RotateDaily)
+	logger, err := filelogger.NewFileLogger("", 0, filelogger.RotateDaily)
 
-	if log != nil {
+	if logger != nil {
 		t.Error("the result should be nil, but got a value", tools.ErrorsDump(err))
 
-		log.Shutdown()
+		logger.Shutdown()
 	}
 }
 
@@ -30,12 +30,12 @@ func TestLogCreate(t *testing.T) {
 	defer tools.FilesRemoveAllUpTo(testPath)
 	tools.FilesRemoveAllUpTo(testPath)
 
-	log, err := filelogger.NewFileLogger(testPath, 0, filelogger.RotateDaily)
-	if log == nil {
+	logger, err := filelogger.NewFileLogger(testPath, 0, filelogger.RotateDaily)
+	if logger == nil {
 		t.Error("the result should be a value, but got nil", tools.ErrorsDump(err))
 		return
 	}
-	log.Shutdown()
+	logger.Shutdown()
 
 	infoDir, errDir := os.Stat(testPath)
 	if errDir != nil {
@@ -70,9 +70,9 @@ func TestLogWrite(t *testing.T) {
 	testFileName := filepath.Join(testPath, time.Now().Format("20060102.log"))
 	expect := bytes.NewBuffer(nil)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		logger.Info("hello", i, "friends")
-		expect.WriteString(fmt.Sprintf("%v hello\t%v\tfriends\n", time.Now().Format("2006/01/02 15:04:05"), i))
+		expect.WriteString(fmt.Sprintf("%v \thello\t%v\tfriends\n", time.Now().Format("2006/01/02 15:04:05"), i))
 	}
 
 	logger.Shutdown()
@@ -85,10 +85,14 @@ func TestLogWrite(t *testing.T) {
 
 	// check the result
 	if expect.Len() == 0 || !reflect.DeepEqual(exist, expect.Bytes()) {
+		//t.Error("failed to write lines to the log file", testFileName, ". The result file contains\r\n",
+		//	string(exist),
+		//	"\r\n, but the expect result should contains\r\n",
+		//	expect)
 		t.Error("failed to write lines to the log file", testFileName, ". The result file contains\r\n",
-			string(exist),
+			exist,
 			"\r\n, but the expect result should contains\r\n",
-			expect)
+			expect.Bytes())
 	}
 }
 
@@ -118,7 +122,7 @@ func TestLogMultiWriter(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		logger.Info("hello", i, "friends")
-		expect.WriteString(fmt.Sprintf("%v hello\t%v\tfriends\n", time.Now().Format("2006/01/02 15:04:05"), i))
+		expect.WriteString(fmt.Sprintf("%v \thello\t%v\tfriends\n", time.Now().Format("2006/01/02 15:04:05"), i))
 	}
 
 	logger.Shutdown()
